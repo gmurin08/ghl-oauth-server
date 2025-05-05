@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id         String      @id @default(uuid())
+  name       String
+  sites      Site[]
+  userRoles  UserRole[]
+  createdAt  DateTime    @default(now())
+}
+
+model User {
+  id        String     @id // maps to Supabase Auth user ID
+  email     String     @unique
+  roles     UserRole[]
+  posts     BlogPost[] @relation("AuthorPosts")
+  apiKeys   ApiKey[]
+  createdAt DateTime   @default(now())
+}
+
+model Site {
+  id        String     @id @default(uuid())
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  tenantId  String
+  name      String
+  domain    String?    @unique
+  blogs     Blog[]
+  roles     UserRole[]
+  createdAt DateTime   @default(now())
+}
+
+model Blog {
+  id         String           @id @default(uuid())
+  site       Site             @relation(fields: [siteId], references: [id])
+  siteId     String
+  name       String
+  slug       String           @unique
+  posts      BlogPost[]
+  categories BlogCategory[]
+  tags       BlogTag[]
+  roles      UserRole[]
+  createdAt  DateTime         @default(now())
+}
+
+model BlogPost {
+  id               String            @id @default(uuid())
+  blog             Blog              @relation(fields: [blogId], references: [id])
+  blogId           String
+  author           User?             @relation("AuthorPosts", fields: [authorId], references: [id])
+  authorId         String?
+  title            String
+  slug             String            @unique
+  snippet          String?
+  content          String
+  coverImageUrl    String?
+  isFeatured       Boolean           @default(false)
+  readTimeEstimate Int?
+  status           PostStatus        @default(DRAFT)
+  scheduledAt      DateTime?
+  publishedAt      DateTime?
+  categories       BlogPostCategory[]
+  tags             BlogPostTag[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model BlogCategory {
+  id        String             @id @default(uuid())
+  blog      Blog               @relation(fields: [blogId], references: [id])
+  blogId    String
+  name      String
+  slug      String             @unique
+  posts     BlogPostCategory[]
+  createdAt DateTime           @default(now())
+}
+
+model BlogPostCategory {
+  blogPost   BlogPost     @relation(fields: [blogPostId], references: [id])
+  blogPostId String
+  category   BlogCategory @relation(fields: [categoryId], references: [id])
+  categoryId String
+
+  @@id([blogPostId, categoryId])
+}
+
+model BlogTag {
+  id        String         @id @default(uuid())
+  blog      Blog           @relation(fields: [blogId], references: [id])
+  blogId    String
+  name      String
+  slug      String         @unique
+  posts     BlogPostTag[]
+  createdAt DateTime       @default(now())
+}
+
+model BlogPostTag {
+  blogPost   BlogPost @relation(fields: [blogPostId], references: [id])
+  blogPostId String
+  tag        BlogTag  @relation(fields: [tagId], references: [id])
+  tagId      String
+
+  @@id([blogPostId, tagId])
+}
+
+model ApiKey {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  key       String   @unique
+  label     String?
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+  tenantId  String?
+  site      Site?    @relation(fields: [siteId], references: [id])
+  siteId    String?
+  blog      Blog?    @relation(fields: [blogId], references: [id])
+  blogId    String?
+  role      Role
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+  VIEWER
+}
